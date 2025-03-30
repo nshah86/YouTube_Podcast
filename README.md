@@ -1,6 +1,6 @@
 # YouTube Podcast Generator
 
-A modular agentic workflow application that converts YouTube videos into text summaries or podcast-style audio conversations.
+A modular application with a Streamlit UI that converts YouTube videos into text summaries or podcast-style audio conversations.
 
 ## Features
 
@@ -8,7 +8,12 @@ A modular agentic workflow application that converts YouTube videos into text su
 - Generate concise text summaries
 - Create podcast-style conversations between two hosts
 - Choose male or female voice personas for podcast generation
-- Debug visualization of the workflow graph using LangGraph
+- Beautiful Streamlit UI for easy interaction
+- Download audio files directly from the browser
+
+## Screenshots
+
+(Coming soon)
 
 ## Installation
 
@@ -30,20 +35,17 @@ Run the application with:
 python src/main.py
 ```
 
-Follow the interactive prompts to:
+This will launch the Streamlit web interface where you can:
 1. Enter a YouTube URL
 2. Choose between summary or podcast output
 3. Select voice preferences (for podcast)
-4. Enable debug visualization if desired
+4. Process the video and view/download the results
 
-## Debug Visualization
+Alternatively, you can run the Streamlit app directly:
 
-When debug mode is enabled, you can view the LangGraph workflow visualization by opening:
 ```
-http://localhost:8000
+streamlit run src/app.py
 ```
-
-This will show a real-time visualization of the agent workflow as it progresses.
 
 ## Project Structure
 
@@ -54,6 +56,7 @@ The project follows a modular architecture:
 - `src/youtube_podcast/utils/`: Utility functions for YouTube processing
 - `src/youtube_podcast/config/`: Configuration settings and environment variables
 - `src/youtube_podcast/workflow.py`: LangGraph workflow definition
+- `src/app.py`: Streamlit user interface
 - `src/main.py`: Main entry point for the application
 
 ## Requirements
