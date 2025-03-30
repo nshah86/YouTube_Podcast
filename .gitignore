@@ -1,12 +1,15 @@
-# Byte-compiled / optimized / DLL files
+# Environment variables
+.env
+.env.*
+env/
+venv/
+ENV/
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -24,26 +27,18 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
-venv/
-env/
-ENV/
-.venv/
-.env
-
-# PyCharm files
-.idea/
-
-# VS Code files
-.vscode/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# macOS
-.DS_Store
-
-# Audio output files
+# Output files
+/output/
 *.mp3
 *.wav
-*.ogg 
+*.txt
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db 
