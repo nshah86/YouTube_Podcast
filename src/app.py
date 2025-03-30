@@ -5,16 +5,27 @@ import tempfile
 from pathlib import Path
 import time
 import re
+from datetime import datetime
 
-
+# Add the src directory to the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(current_dir))
 
-from youtube_podcast.config.settings import OPENAI_API_KEY, DEFAULT_OUTPUT_DIR
+# Import settings and utils
+try:
+    from youtube_podcast.config.settings import OPENAI_API_KEY, DEFAULT_OUTPUT_DIR
+except ImportError:
+    # Fallback if DEFAULT_OUTPUT_DIR is not defined
+    from youtube_podcast.config.settings import OPENAI_API_KEY
+    DEFAULT_OUTPUT_DIR = os.path.join(os.getcwd(), "output")
+    os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)
+    
 from youtube_podcast.utils.youtube_utils import fetch_transcript
 from youtube_podcast.agents.summary_agent import generate_summary
 from youtube_podcast.agents.podcast_agent import create_conversation, generate_podcast
-from youtube_podcast.workflow import initialize_state
+
+# Create output directory if it doesn't exist
+os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)
 
 # Page config
 st.set_page_config(
@@ -143,17 +154,29 @@ with st.sidebar:
             help="Choose the voice gender for your podcast"
         )
     else:
-        gender = None
+        gender = "mixed"  # Default value
     
     process_button = st.button("Process Video", type="primary")
 
 # Main content area
 if process_button and youtube_url:
-    # Create initial state
-    state = initialize_state()
-    state["url"] = youtube_url
-    state["output_type"] = output_type
-    state["gender"] = gender
+    # Create a basic state dictionary
+    state = {
+        "url": youtube_url,
+        "transcript": "",
+        "summary": "",
+        "summary_title": "",
+        "summary_filename": "",
+        "conversation": "",
+        "podcast_title": "",
+        "podcast_filename": "",
+        "audio_path": "",
+        "gender": gender,
+        "output_type": output_type,
+        "status": "initialized",
+        "error": None,
+        "start_time": datetime.now().isoformat(),
+    }
     
     # Create progress tracking container
     progress_container = st.container()
@@ -190,124 +213,110 @@ if process_button and youtube_url:
             try:
                 # Generate summary with spinner
                 with st.spinner():
-                    state = generate_summary(state)
+                    summary_result = generate_summary(state)
+                    state.update(summary_result)
                 
-                if state["status"] == "summary_generated":
-                    progress_bar.progress(100)
-                    status_text.success("✅ Processing complete!")
-                    
-                    # Create a container for the summary output
-                    summary_container = st.container()
-                    with summary_container:
-                        # Display the summary title in a nice card
-                        st.markdown(f"""
-                        <div class="title-card">
-                            <h2>{state['summary_title']}</h2>
-                            <p>Summary generated from YouTube video</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        st.caption(f"Saved as: {state['summary_filename']}")
-                        
-                        # Display the summary in a nice box
-                        st.markdown(f"<div style='background-color:#f0f2f6;padding:20px;border-radius:10px'>{state['summary']}</div>", unsafe_allow_html=True)
-                        
-                        # Add download button for the summary text file
-                        with open(state["summary_filename"], "r", encoding='utf-8') as file:
-                            st.download_button(
-                                label="📥 Download Summary Text",
-                                data=file,
-                                file_name=state["summary_filename"],
-                                mime="text/plain"
-                            )
+                if state.get("summary"):
+                    state["status"] = "summary_generated"
+                    progress_bar.progress(66)
                 else:
-                    status_text.error(f"❌ {state.get('error', 'Error generating summary')}")
+                    status_text.error("❌ Failed to generate summary")
+                    st.stop()
             except Exception as e:
                 status_text.error(f"❌ Error generating summary: {str(e)}")
+                st.stop()
+                
+            # Step 3: Display summary result
+            status_text.info("Step 3/3: Processing complete!")
+            progress_bar.progress(100)
+            
+            # Show the summary
+            st.header("📝 Summary Generated")
+            st.markdown(f"## {state.get('summary_title', 'Summary')}")
+            st.markdown(state.get("summary", ""))
+            
+            # Offer download option
+            if state.get("summary_filename"):
+                summary_path = os.path.join(DEFAULT_OUTPUT_DIR, state.get("summary_filename"))
+                with open(summary_path, "r", encoding="utf-8") as f:
+                    summary_content = f.read()
+                    
+                st.download_button(
+                    label="Download Summary as Text",
+                    data=summary_content,
+                    file_name=state.get("summary_filename"),
+                    mime="text/plain"
+                )
         
-        else:  # podcast
-            status_text.info("Step 2/3: Creating conversation script...")
+        elif output_type == "podcast":
+            # Step 2: Generate conversation
+            status_text.info("Step 2/3: Generating podcast conversation...")
             try:
                 # Generate conversation with spinner
                 with st.spinner():
-                    state = create_conversation(state)
+                    conversation_result = create_conversation(state)
+                    state.update(conversation_result)
                 
-                if state["status"] == "conversation_created":
+                if state.get("conversation"):
+                    state["status"] = "conversation_generated"
                     progress_bar.progress(66)
                     
-                    # Create a container for the podcast output
-                    podcast_container = st.container()
-                    with podcast_container:
-                        # Display the podcast title in a nice card
-                        st.markdown(f"""
-                        <div class="title-card">
-                            <h2>{state['podcast_title']}</h2>
-                            <p>Podcast conversation between hosts</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Extract host names based on gender preference
-                        if state.get("gender") == "male":
-                            host1, host2 = "Michael", "David"
-                        elif state.get("gender") == "female":
-                            host1, host2 = "Sarah", "Emily"
-                        else:
-                            host1, host2 = "Alex", "Jamie"
-                            
-                        # Show conversation script as a chat
-                        st.subheader("Conversation Script")
-                        st.markdown('<div class="chat-container">' + 
-                                   format_conversation_for_display(state["conversation"], host1, host2) + 
-                                   '<div style="clear:both"></div></div>', 
-                                   unsafe_allow_html=True)
+                    # Show the conversation
+                    st.header("💬 Podcast Conversation")
+                    st.markdown(f"## {state.get('podcast_title', 'Podcast Conversation')}")
                     
-                    # Generate podcast
-                    status_text.info("Step 3/3: Generating podcast audio...")
-                    with st.spinner("Creating audio file... this may take a moment"):
-                        # Add artificial delay for better UX with progress bar animation
-                        for percent in range(67, 95, 5):
-                            time.sleep(0.5)
-                            progress_bar.progress(percent)
-                        
-                        state = generate_podcast(state)
-                    
-                    if state["status"] == "podcast_generated":
-                        progress_bar.progress(100)
-                        status_text.success("✅ Processing complete!")
-                        
-                        with podcast_container:
-                            # Display filename and audio player
-                            st.markdown(f'<div class="audio-container">', unsafe_allow_html=True)
-                            st.caption(f"Audio file saved as: {os.path.basename(state['audio_path'])}")
-                            
-                            # Add info about natural conversation
-                            st.info("The audio uses natural speech patterns and conversational style for a more engaging listening experience.")
-                            
-                            # Display audio player with waveform and controls
-                            try:
-                                audio_file = open(state["audio_path"], "rb")
-                                audio_bytes = audio_file.read()
-                                audio_file.close()
-                                
-                                st.audio(audio_bytes, format="audio/mp3")
-                                
-                                # Add download button
-                                st.download_button(
-                                    label="📥 Download Podcast MP3",
-                                    data=audio_bytes,
-                                    file_name=os.path.basename(state["audio_path"]),
-                                    mime="audio/mp3"
-                                )
-                            except Exception as e:
-                                st.error(f"Error loading audio: {str(e)}")
-                            
-                            st.markdown('</div>', unsafe_allow_html=True)
-                    else:
-                        status_text.error(f"❌ {state.get('error', 'Error generating podcast audio')}")
+                    # Display formatted conversation
+                    conversation_html = format_conversation_for_display(
+                        state.get("conversation", ""), 
+                        host1="Jake" if gender == "male" else "Sarah",
+                        host2="Michael" if gender == "male" else "Emma"
+                    )
+                    st.markdown(f'<div class="chat-container">{conversation_html}</div>', unsafe_allow_html=True)
                 else:
-                    status_text.error(f"❌ {state.get('error', 'Error creating conversation')}")
+                    status_text.error("❌ Failed to generate conversation")
+                    st.stop()
             except Exception as e:
-                status_text.error(f"❌ Error in podcast generation: {str(e)}")
+                status_text.error(f"❌ Error generating conversation: {str(e)}")
+                st.stop()
+            
+            # Step 3: Generate audio podcast
+            status_text.info("Step 3/3: Generating audio podcast...")
+            try:
+                # Generate podcast with spinner
+                with st.spinner():
+                    podcast_result = generate_podcast(state)
+                    state.update(podcast_result)
+                
+                if state.get("audio_path"):
+                    state["status"] = "podcast_generated"
+                    progress_bar.progress(100)
+                    
+                    # Show the audio file
+                    st.header("🎧 Podcast Generated")
+                    
+                    # Display audio player
+                    audio_path = state.get("audio_path")
+                    st.audio(audio_path)
+                    
+                    # Offer download option for audio
+                    with open(audio_path, "rb") as f:
+                        audio_data = f.read()
+                        
+                    st.download_button(
+                        label="Download Podcast Audio",
+                        data=audio_data,
+                        file_name=os.path.basename(audio_path),
+                        mime="audio/mpeg"
+                    )
+                    
+                    # Processing complete
+                    status_text.success("✅ Podcast generated successfully!")
+                else:
+                    status_text.error("❌ Failed to generate podcast audio")
+                    st.stop()
+            except Exception as e:
+                status_text.error(f"❌ Error generating podcast audio: {str(e)}")
+                st.stop()
 
 # Display instructions when no URL is entered
 else:
