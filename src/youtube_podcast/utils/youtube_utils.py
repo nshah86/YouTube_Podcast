@@ -1,5 +1,5 @@
 from youtube_transcript_api import YouTubeTranscriptApi
-from typing import Optional
+from typing import Optional, Union
 from ..models.state import AgentState
 
 def extract_video_id(url: str) -> str:
@@ -11,9 +11,23 @@ def extract_video_id(url: str) -> str:
     else:
         raise ValueError("Invalid YouTube URL format")
 
-def fetch_transcript(video_url: str) -> Optional[str]:
-    """Fetch transcript from a YouTube video URL."""
+def fetch_transcript(video_url_or_state: Union[str, AgentState]) -> Optional[str]:
+    """
+    Fetch transcript from a YouTube video URL.
+    
+    Args:
+        video_url_or_state: Either a YouTube URL string or an AgentState containing the URL
+        
+    Returns:
+        The transcript text if successful, None otherwise
+    """
     try:
+        # Handle both string URLs and AgentState
+        if isinstance(video_url_or_state, dict):
+            video_url = video_url_or_state['url']
+        else:
+            video_url = video_url_or_state
+            
         video_id = extract_video_id(video_url)
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         text = " ".join([entry['text'] for entry in transcript])
