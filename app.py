@@ -29,11 +29,6 @@ from src.youtube_podcast.utils.auth import (
 from src.youtube_podcast.utils.supabase_client import get_supabase, is_supabase_configured
 from src.youtube_podcast.utils.usage_tracker import track_usage, get_user_usage_history, get_user_usage_stats
 from src.youtube_podcast.utils.rate_limiter import requires_rate_limit, check_rate_limit
-from src.youtube_podcast.utils.payments import (
-    is_stripe_configured,
-    create_checkout_session,
-    handle_stripe_webhook
-)
 from src.youtube_podcast.agents.summary_agent import (
     generate_summary,
 )
@@ -940,69 +935,6 @@ def not_found(error):
     """404 error handler"""
     return render_template('404.html'), 404
 
-@app.route('/api/payment/create-checkout', methods=['POST'])
-def create_payment_checkout():
-    """Create Stripe checkout session for subscription"""
-    try:
-        if not session.get('user_id'):
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        if not is_stripe_configured():
-            return jsonify({'error': 'Payment service not configured'}), 500
-        
-        data = request.get_json()
-        plan = data.get('plan', '').lower()
-        
-        if plan not in ['plus', 'pro', 'enterprise']:
-            return jsonify({'error': 'Invalid plan selected'}), 400
-        
-        # Map plans to Stripe Price IDs (configure in environment)
-        price_ids = {
-            'plus': os.getenv('STRIPE_PRICE_PLUS', ''),
-            'pro': os.getenv('STRIPE_PRICE_PRO', ''),
-            'enterprise': os.getenv('STRIPE_PRICE_ENTERPRISE', '')
-        }
-        
-        price_id = price_ids.get(plan)
-        if not price_id:
-            return jsonify({'error': f'Price ID not configured for {plan} plan'}), 500
-        
-        user_id = session.get('user_id')
-        user_email = session.get('user_email', '')
-        
-        result = create_checkout_session(user_id, user_email, plan, price_id)
-        
-        if result:
-            return jsonify({
-                'success': True,
-                'session_id': result['session_id'],
-                'url': result['url']
-            })
-        else:
-            return jsonify({'error': 'Failed to create checkout session'}), 500
-    
-    except Exception as e:
-        logging.error(f"Error creating checkout session: {str(e)}")
-        return jsonify({'error': f'Payment error: {str(e)}'}), 500
-
-@app.route('/api/payment/webhook', methods=['POST'])
-def stripe_webhook():
-    """Handle Stripe webhook events"""
-    try:
-        payload = request.data
-        signature = request.headers.get('Stripe-Signature')
-        
-        if not signature:
-            return jsonify({'error': 'Missing signature'}), 400
-        
-        if handle_stripe_webhook(payload, signature):
-            return jsonify({'success': True}), 200
-        else:
-            return jsonify({'error': 'Webhook processing failed'}), 400
-    
-    except Exception as e:
-        logging.error(f"Error handling webhook: {str(e)}")
-        return jsonify({'error': f'Webhook error: {str(e)}'}), 500
 
 @app.route('/api/user/usage-history', methods=['GET'])
 def get_usage_history():
