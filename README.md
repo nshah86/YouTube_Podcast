@@ -1,44 +1,38 @@
-# VideoTranscript Pro
+# VideoTranscript Pro - YouTube to Podcast Converter
 
-Extract YouTube transcripts instantly with a beautiful, modern interface.
+Extract YouTube transcripts and convert them to podcasts with customizable voices.
 
 ## Features
 
-- ⚡ Instant transcript extraction from any YouTube video
-- 📝 Clean, formatted text output
-- 💾 Download as text file or copy to clipboard
-- 🎯 No limits, completely free
-- 🎨 Beautiful, responsive UI
-
-## Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Open http://localhost:5000
-
-## How to Use
-
-1. Paste a YouTube video URL
-2. Click "Extract Transcript"
-3. Copy or download the transcript
+- YouTube transcript extraction
+- Text-to-speech podcast generation
+- Multiple voice options (male/female, US/UK/AU/IN/CA accents)
+- User authentication with Supabase
+- Token-based usage system
+- Transcript history
+- Podcast library
+- REST API access
+- Export options (download, copy)
 
 ## Tech Stack
 
-- React 18
-- Vite
-- Supabase
-- YouTube Transcript API
+- React 18 + Vite
+- Supabase (Database + Auth)
+- Custom CSS
 
-## Deployment
+## Getting Started
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
 
 ```bash
 npm run build
 ```
 
-Deploy the `dist` folder to any static hosting service.
+## Deploy
+
+Built output in `dist/` directory. Works with Netlify, Vercel, or any static host.
