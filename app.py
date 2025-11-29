@@ -3,6 +3,7 @@ VideoTranscript Pro - Modern YouTube Transcript & Podcast Generator
 A production-ready web application for extracting and processing YouTube transcripts
 """
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask_wtf.csrf import CSRFProtect
 import logging
 import os
 import sys
@@ -52,12 +53,26 @@ def create_app() -> Flask:
     # Load environment-specific config
     cfg_cls = get_config()
     app.config.from_object(cfg_cls)
-
+    
+    # Initialize CSRF protection (exempt API endpoints that use token auth)
+    csrf = CSRFProtect(app)
+    
+    # Exempt API endpoints from CSRF (they use token authentication)
+    csrf.exempt('api_transcripts')
+    csrf.exempt('api_channels')
+    csrf.exempt('stripe_webhook')
+    
     # Ensure SECRET_KEY is set securely in production
     if app.config.get("DEBUG") is False and not app.config.get("SECRET_KEY"):
         raise RuntimeError(
             "SECRET_KEY is not set. For production, configure SECRET_KEY in environment or config."
         )
+    
+    # Set default SECRET_KEY for development if not set
+    if not app.config.get("SECRET_KEY"):
+        import secrets
+        app.config["SECRET_KEY"] = secrets.token_hex(32)
+        logging.warning("SECRET_KEY not set. Using generated key for development only. Set SECRET_KEY in .env for production.")
 
     # Fallback for DEFAULT_OUTPUT_DIR if not using BaseConfig.OUTPUT_DIR
     output_dir = getattr(cfg_cls, "OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
@@ -986,6 +1001,7 @@ def create_payment_checkout():
         return jsonify({'error': f'Payment error: {str(e)}'}), 500
 
 @app.route('/api/payment/webhook', methods=['POST'])
+@csrf.exempt  # Webhook must be exempt from CSRF (Stripe verifies via signature)
 def stripe_webhook():
     """Handle Stripe webhook events"""
     try:
