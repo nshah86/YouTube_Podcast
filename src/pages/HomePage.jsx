@@ -55,18 +55,31 @@ export default function HomePage({ onNavigate }) {
         throw new Error('Invalid YouTube URL');
       }
 
-      const proxyUrl = 'https://corsproxy.io/?';
-      const apiUrl = `${proxyUrl}https://youtube-transcript-api.vercel.app/api/transcript?videoId=${videoId}`;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const apiUrl = `${supabaseUrl}/functions/v1/extract-transcript`;
 
-      const response = await fetch(apiUrl);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please sign in to extract transcripts');
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoId })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch transcript');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch transcript');
       }
 
       const data = await response.json();
 
-      if (!data || !data.transcript || data.transcript.length === 0) {
+      if (!data.success || !data.transcript || data.transcript.length === 0) {
         throw new Error('No transcript available for this video');
       }
 
