@@ -12,16 +12,7 @@ def main():
     print("VideoTranscript Pro - Starting Application")
     print("=" * 60)
     
-    # Run validation first
-    print("\nRunning pre-flight validation...\n")
-    result = subprocess.run([sys.executable, "validate_app.py"], capture_output=False)
-    
-    if result.returncode != 0:
-        print("\n❌ Validation failed. Please fix issues before starting.")
-        sys.exit(1)
-    
-    print("\n" + "=" * 60)
-    print("Starting Flask application...")
+    print("\nStarting Flask application...")
     print("=" * 60 + "\n")
     
     # Set environment
