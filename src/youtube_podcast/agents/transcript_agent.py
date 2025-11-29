@@ -31,9 +31,5 @@ def get_output_preferences(state: AgentState) -> AgentState:
         
         state["gender"] = gender_choice
     
-    # Ask about debug mode
-    debug_choice = input("Do you want to enable debug mode to see the workflow graph? (yes/no): ").lower().strip()
-    state["debug"] = debug_choice in ["yes", "y", "true"]
-    
     state["status"] = "preferences_set"
     return state
