@@ -5,11 +5,13 @@ class AgentState(TypedDict):
     url: str
     transcript: str
     summary: str
+    summary_title: Optional[str]
+    summary_filename: Optional[str]
     conversation: str
+    podcast_title: Optional[str]
     audio_path: str
     output_type: str
     gender: Optional[str]  # 'male' or 'female' for podcast voice
-    debug: bool  # To enable debug visualization
     
     # For tracking progress through the workflow
     status: str

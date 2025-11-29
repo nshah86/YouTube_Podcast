@@ -104,10 +104,26 @@ def clean_text_for_speech(text: str) -> str:
     # Replace special characters that might be read literally
     text = text.replace('&', 'and')
     text = text.replace('/', ' or ')
+    text = text.replace('#', 'number ')
+    text = text.replace('@', 'at ')
     text = text.replace('...', '.')  # Replace ellipsis with period for cleaner pauses
+    text = text.replace('—', ', ')   # Em dash
+    text = text.replace('–', ', ')   # En dash
+    text = text.replace('|', ', ')   # Vertical bar
+    
+    # Convert common abbreviations
+    text = re.sub(r'\bi\.e\.\s', 'that is, ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\be\.g\.\s', 'for example, ', text, flags=re.IGNORECASE)
+    text = re.sub(r'\betc\.', 'etcetera', text, flags=re.IGNORECASE)
+    text = re.sub(r'\bvs\.', 'versus', text, flags=re.IGNORECASE)
     
     # Convert URLs to more speech-friendly format
     text = re.sub(r'https?://\S+', 'a website link', text)
+    
+    # Replace multiple punctuations with single ones
+    text = re.sub(r'\.{2,}', '.', text)
+    text = re.sub(r'\!{2,}', '!', text)
+    text = re.sub(r'\?{2,}', '?', text)
     
     # Normalize spaces
     text = re.sub(r'\s+', ' ', text)
@@ -118,6 +134,10 @@ def clean_text_for_speech(text: str) -> str:
     
     # Replace dashes with natural pauses
     text = text.replace(' - ', ', ')
+    
+    # Make quoted content more natural for speech
+    text = re.sub(r'"([^"]*)"', r' \1 ', text)
+    text = re.sub(r"'([^']*)'", r' \1 ', text)
     
     return text.strip()
 

@@ -1,66 +1,63 @@
-# YouTube Podcast Generator
+# VideoTranscript Pro
 
-A modular application with a Streamlit UI that converts YouTube videos into text summaries or podcast-style audio conversations.
+A production-ready web application for extracting YouTube transcripts, generating AI summaries, and creating podcast audio.
 
-## Features
+## 🚀 Quick Start
 
-- Extract transcripts from any YouTube video
-- Generate concise text summaries
-- Create podcast-style conversations between two hosts
-- Choose male or female voice personas for podcast generation
-- Beautiful Streamlit UI for easy interaction
-- Download audio files directly from the browser
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
 
-## Screenshots
+# 2. Configure environment variables
+# Create .env file with your API keys (see docs/GETTING_STARTED.md)
 
-(Coming soon)
-
-## Installation
-
-1. Clone this repository
-2. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Create a `.env` file with your API keys:
-   ```
-   OPENAI_API_KEY="your_openai_api_key"
-   ```
-
-## Usage
-
-Run the application with:
-
-```
-python src/main.py
+# 3. Run the application
+python start.py
 ```
 
-This will launch the Streamlit web interface where you can:
-1. Enter a YouTube URL
-2. Choose between summary or podcast output
-3. Select voice preferences (for podcast)
-4. Process the video and view/download the results
+Visit `http://127.0.0.1:5000` in your browser.
 
-Alternatively, you can run the Streamlit app directly:
+## 📚 Documentation
 
+**Start here:** [docs/README.md](docs/README.md) - Complete documentation
+
+**Quick links:**
+- [Getting Started](docs/GETTING_STARTED.md) - Setup guide for new users
+- [Features](docs/FEATURES.md) - Complete feature list
+- [API Documentation](docs/README.md#api-documentation) - API reference
+- [Architecture](docs/ARCHITECTURE.md) - System architecture
+- [Deployment](docs/DEPLOYMENT.md) - Production deployment guide
+- [Production Checklist](docs/PRODUCTION_CHECKLIST.md) - Production readiness
+
+**Full index:** [docs/INDEX.md](docs/INDEX.md)
+
+## ✨ Features
+
+- ✅ Extract transcripts from YouTube videos
+- ✅ Generate AI-powered summaries
+- ✅ Create podcast audio with voice selection
+- ✅ User authentication with Supabase
+- ✅ API token management
+- ✅ Bulk processing (up to 50 videos)
+- ✅ CSV import/export
+- ✅ Usage tracking and history
+- ✅ Rate limiting
+- ✅ Dark/Light mode
+
+## 🧪 Testing
+
+```bash
+# Run automation tests
+python run_tests.py
 ```
-streamlit run src/app.py
-```
 
-## Project Structure
+Test reports are saved in `test_reports/` folder.
 
-The project follows a modular architecture:
+## 📋 Production Checklist
 
-- `src/youtube_podcast/agents/`: Contains agents for transcript, summary, and podcast generation
-- `src/youtube_podcast/models/`: Data models for the application state
-- `src/youtube_podcast/utils/`: Utility functions for YouTube processing
-- `src/youtube_podcast/config/`: Configuration settings and environment variables
-- `src/youtube_podcast/workflow.py`: LangGraph workflow definition
-- `src/app.py`: Streamlit user interface
-- `src/main.py`: Main entry point for the application
+Before deploying, review [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md)
 
-## Requirements
+## 📄 License
 
-- Python 3.8+
-- OpenAI API key
-- Internet connection for accessing YouTube videos 
+Copyright © 2025 VideoTranscript Pro. All rights reserved.
+

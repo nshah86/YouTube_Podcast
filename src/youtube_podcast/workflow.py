@@ -1,17 +1,25 @@
 from langgraph.graph import StateGraph, START, END
-from .models.state import AgentState
 from .agents.transcript_agent import get_url_input, fetch_transcript, get_output_preferences
 from .agents.summary_agent import generate_summary
 from .agents.podcast_agent import create_conversation, generate_podcast
-from .config.settings import DEBUG_LANGGRAPH, DEBUG_LANGGRAPH_PORT
+from typing import Dict
+import os
+from datetime import datetime
 
-def determine_output_path(state: AgentState) -> str:
+try:
+    from .config.settings import DEFAULT_OUTPUT_DIR
+except ImportError:
+    # Fallback if DEFAULT_OUTPUT_DIR is not defined
+    DEFAULT_OUTPUT_DIR = os.path.join(os.getcwd(), "output")
+    os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)
+
+def determine_output_path(state: Dict) -> str:
     """Determine which path to take based on user's choice."""
     return state["output_type"]
 
-def create_workflow(debug: bool = False) -> StateGraph:
+def create_workflow() -> StateGraph:
     """Create a workflow graph with conditional branches."""
-    workflow = StateGraph(AgentState)
+    workflow = StateGraph(Dict)
     
     # Add nodes
     workflow.add_node("get_url_node", get_url_input)
@@ -42,55 +50,46 @@ def create_workflow(debug: bool = False) -> StateGraph:
     workflow.add_edge("podcast_node", END)
     
     # Compile the workflow
-    compiled_workflow = workflow.compile()
-    
-    # Set up debugging visualization if requested
-    if debug:
-        from langgraph.checkpoint import MemorySaver
-        from langgraph.websocket import WebSocketServer
-        
-        memory_saver = MemorySaver()
-        websocket_server = WebSocketServer(memory_saver, port=DEBUG_LANGGRAPH_PORT)
-        
-        # Start the websocket server for visualization
-        websocket_server.start()
-        print(f"Debug visualization server started on port {DEBUG_LANGGRAPH_PORT}. Open http://localhost:{DEBUG_LANGGRAPH_PORT} to view the workflow graph.")
-        
-        # Register the checkpoint with the compiled workflow
-        compiled_workflow.with_checkpointer(memory_saver)
-    
-    return compiled_workflow
+    return workflow.compile()
 
-def run_workflow(debug: bool = False):
+def initialize_state() -> Dict:
+    """
+    Initialize the state dictionary with default values.
+    
+    This function creates a centralized way to initialize the state with
+    default values and ensure consistency across the application.
+    
+    Returns:
+        Dict: A dictionary with initial state values
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)
+    
+    # Initialize with default values
+    return {
+        "url": "",
+        "transcript": "",
+        "summary": "",
+        "summary_title": "",
+        "summary_filename": "",
+        "conversation": "",
+        "podcast_title": "",
+        "podcast_filename": "",
+        "audio_path": "",
+        "gender": "mixed",
+        "output_type": "summary",
+        "status": "initialized",
+        "error": None,
+        "start_time": datetime.now().isoformat(),
+    }
+
+def run_workflow():
     """Run the YouTube processing workflow with conditional paths."""
     # Initialize the state
-    initial_state = AgentState(
-        url="",
-        transcript="",
-        summary="",
-        conversation="",
-        audio_path="",
-        output_type="",
-        gender=None,
-        debug=debug,
-        status="initialized",
-        error=None
-    )
+    initial_state = initialize_state()
     
     # Create and run the workflow
-    workflow = create_workflow(debug=debug)
+    workflow = create_workflow()
     final_state = workflow.invoke(initial_state)
     
-    # Display final output
-    print("\nWorkflow completed!")
-    if final_state['status'] == 'error':
-        print(f"Error occurred during processing: {final_state['error']}")
-    elif final_state['output_type'] == 'summary':
-        print("\nSummary of the video:")
-        print(final_state['summary'])
-    else:  # podcast
-        print(f"\nPodcast audio file generated: {final_state['audio_path']}")
-        print("\nConversation script used for the podcast:")
-        print(final_state['conversation'])
-        
     return final_state

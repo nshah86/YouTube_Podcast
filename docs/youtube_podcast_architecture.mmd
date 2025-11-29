@@ -1,0 +1,62 @@
+
+graph TD
+    %% External Services
+    YT[YouTube API] 
+    OAI[OpenAI API]
+    TTS[Text-to-Speech]
+    
+    %% User Interface
+    User[User]
+    UI[Streamlit UI]
+    
+    %% Core Components
+    YTU[YouTube Utils]
+    TA[Transcript Agent]
+    SA[Summary Agent]
+    PA[Podcast Agent]
+    Config[Config/Settings]
+    
+    %% Storage
+    Storage[Output Storage]
+    
+    %% User flow
+    User -->|1. Input URL| UI
+    UI -->|2. Request Transcript| YTU
+    YTU -->|3. Fetch Video Data| YT
+    YT -->|4. Return Transcript| YTU
+    
+    %% Processing flow
+    YTU -->|5. Process| TA
+    
+    %% Conditional paths
+    TA -->|6a. Summary| SA
+    TA -->|6b. Podcast| PA
+    
+    %% AI Processing
+    SA -->|7a. Generate| OAI
+    PA -->|7b. Generate| OAI
+    PA -->|8. Convert| TTS
+    
+    %% Output storage
+    SA -->|9a. Save| Storage
+    PA -->|9b. Save| Storage
+    
+    %% Results to UI
+    Storage -->|10. Results| UI
+    UI -->|11. Display Results| User
+    
+    %% Config connections
+    Config -.-> SA
+    Config -.-> PA
+    Config -.-> YTU
+    
+    %% Styling
+    classDef ui fill:#3498db,color:white,stroke:#2980b9;
+    classDef core fill:#2ecc71,color:white,stroke:#27ae60;
+    classDef external fill:#e74c3c,color:white,stroke:#c0392b;
+    classDef storage fill:#f39c12,color:white,stroke:#d35400;
+    
+    class User,UI ui;
+    class YTU,TA,SA,PA,Config core;
+    class YT,OAI,TTS external;
+    class Storage storage;
