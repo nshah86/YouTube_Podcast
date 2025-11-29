@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
 
-export default function HistoryPage() {
+export default function HistoryPage({ onVideoClick }) {
   const [transcripts, setTranscripts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -88,7 +88,12 @@ export default function HistoryPage() {
           {transcripts.map((transcript) => (
             <div key={transcript.id} className="transcript-card">
               <div className="transcript-card-header">
-                <h3>{transcript.video_title}</h3>
+                <h3
+                  onClick={() => onVideoClick && onVideoClick(transcript.video_id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {transcript.video_title}
+                </h3>
                 <div className="transcript-card-actions">
                   <button
                     onClick={() => downloadTranscript(transcript)}
@@ -110,17 +115,35 @@ export default function HistoryPage() {
                 <span>📅 {new Date(transcript.created_at).toLocaleDateString()}</span>
                 <span>📝 {transcript.transcript_text.length} characters</span>
               </div>
-              <div className="transcript-card-preview">
+              <div
+                className="transcript-card-preview"
+                onClick={() => onVideoClick && onVideoClick(transcript.video_id)}
+                style={{ cursor: 'pointer' }}
+              >
                 {transcript.transcript_text.substring(0, 200)}...
               </div>
-              <a
-                href={transcript.video_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transcript-card-link"
-              >
-                View on YouTube →
-              </a>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => onVideoClick && onVideoClick(transcript.video_id)}
+                  className="transcript-card-link"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer'
+                  }}
+                >
+                  View Transcript →
+                </button>
+                <a
+                  href={transcript.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transcript-card-link"
+                >
+                  View on YouTube →
+                </a>
+              </div>
             </div>
           ))}
         </div>

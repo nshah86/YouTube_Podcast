@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
 
-export default function HomePage({ onNavigate }) {
+export default function HomePage({ onNavigate, onVideoClick }) {
   const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [transcript, setTranscript] = useState(null);
@@ -113,6 +113,12 @@ export default function HomePage({ onNavigate }) {
       });
 
       await updateTokens(profile.tokens - 1);
+
+      if (onVideoClick) {
+        setTimeout(() => {
+          onVideoClick(videoId);
+        }, 1000);
+      }
 
     } catch (err) {
       setError(err.message);

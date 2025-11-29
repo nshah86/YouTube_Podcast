@@ -7,26 +7,35 @@ import HistoryPage from './pages/HistoryPage';
 import PodcastsPage from './pages/PodcastsPage';
 import ApiPage from './pages/ApiPage';
 import PricingPage from './pages/PricingPage';
+import VideoPage from './pages/VideoPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [currentVideoId, setCurrentVideoId] = useState(null);
+
+  const navigateToVideo = (videoId) => {
+    setCurrentVideoId(videoId);
+    setCurrentPage('video');
+  };
 
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <HomePage onNavigate={setCurrentPage} />;
+        return <HomePage onNavigate={setCurrentPage} onVideoClick={navigateToVideo} />;
       case 'login':
         return <LoginPage onNavigate={setCurrentPage} />;
       case 'history':
-        return <HistoryPage />;
+        return <HistoryPage onVideoClick={navigateToVideo} />;
       case 'podcasts':
         return <PodcastsPage />;
       case 'api':
         return <ApiPage />;
       case 'pricing':
         return <PricingPage onNavigate={setCurrentPage} />;
+      case 'video':
+        return <VideoPage videoId={currentVideoId} onNavigate={setCurrentPage} />;
       default:
-        return <HomePage onNavigate={setCurrentPage} />;
+        return <HomePage onNavigate={setCurrentPage} onVideoClick={navigateToVideo} />;
     }
   };
 
