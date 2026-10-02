@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}API — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>API documentation</h1>
+<p>Generate an API token from your <a href="/account">account</a>, then call the API with an <code>Authorization: Bearer &lt;token&gt;</code> header.</p>
+
+<div class="card">
+<h2>POST /api/transcripts <span style="font-size:.8rem;color:var(--muted)">Plus plan+</span></h2>
+<p>Fetch transcripts for up to 50 video IDs.</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -X POST https://YOUR-DOMAIN/api/transcripts \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"ids":["dQw4w9WgXcQ"]}'</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/channels <span style="font-size:.8rem;color:var(--muted)">Plus plan+</span></h2>
+<p>Channel info lookup (requires YouTube Data API key configuration).</p>
+</div>
+
+<div class="card">
+<h2>Token quotas</h2>
+<ul><li>Free: 25 / month</li><li>Plus: 1,000 / month</li><li>Pro: 3,000 / month</li><li>Enterprise: 10,000 / month</li></ul>
+</div>
+{% endblock %}

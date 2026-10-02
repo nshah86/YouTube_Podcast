@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Log in — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>Log in</h1>
+<div id="msg"></div>
+<div class="card" style="max-width:420px;">
+  <label for="email">Email</label>
+  <input id="email" type="email" autocomplete="email">
+  <label for="password">Password</label>
+  <input id="password" type="password" autocomplete="current-password">
+  <button class="btn" onclick="doAuth('/auth/login')">Log in</button>
+  <button class="btn btn-ghost" onclick="doAuth('/auth/signup')">Sign up</button>
+</div>
+<script>
+async function doAuth(path){
+  const email=document.getElementById('email').value.trim();
+  const password=document.getElementById('password').value;
+  const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const j=await r.json();
+  const msg=document.getElementById('msg');
+  if(j.success){ location.href=j.redirect||'/'; }
+  else{ msg.innerHTML='<div class="alert alert-error">'+(j.error||'Failed')+'</div>'; }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Pricing — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>Simple pricing</h1>
+<p>Start free. Upgrade when you need AI summaries, podcasts, or bulk processing.</p>
+<div id="msg"></div>
+
+<div class="grid" style="margin-top:1.5rem;">
+  <div class="card">
+    <h2>Free</h2><div class="price">$0</div>
+    <ul><li>Single transcript extraction</li><li>25 API tokens / month</li><li>Community support</li></ul>
+    <p style="margin-top:1rem;"><a class="btn btn-ghost" href="/signup">Sign up free</a></p>
+  </div>
+  {% for plan_key, tier in tiers.items() %}
+  <div class="card">
+    <h2>{{ tier.name }}</h2><div class="price">${{ tier.monthly_price_usd }}<span style="font-size:1rem;color:var(--muted)">/mo</span></div>
+    <ul>{% for f in tier.features %}<li>{{ f }}</li>{% endfor %}</ul>
+    <p style="margin-top:1rem;"><button class="btn" onclick="checkout('{{ plan_key }}')">Choose {{ tier.name }}</button></p>
+  </div>
+  {% endfor %}
+  <div class="card">
+    <h2>Enterprise</h2><div class="price">Custom</div>
+    <ul><li>Everything in Pro</li><li>10,000 API tokens / month</li><li>SSO &amp; SLA</li><li>Dedicated support</li></ul>
+    <p style="margin-top:1rem;"><a class="btn btn-ghost" href="/support">Contact us</a></p>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+if(params.get('billing')==='cancelled'){
+  document.getElementById('msg').innerHTML = '<div class="alert alert-error">Checkout was cancelled. No charge was made.</div>';
+}
+async function checkout(plan){
+  const r = await fetch('/billing/create-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan})});
+  const j = await r.json();
+  if(r.status===401){ location.href='/login'; return; }
+  if(j.url){ location.href=j.url; }
+  else{ document.getElementById('msg').innerHTML = '<div class="alert alert-error">'+(j.error||'Could not start checkout')+'</div>'; }
+}
+</script>
+{% endblock %}
