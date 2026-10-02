@@ -29,6 +29,13 @@ from src.youtube_podcast.utils.auth import (
 from src.youtube_podcast.utils.supabase_client import get_supabase, is_supabase_configured
 from src.youtube_podcast.utils.usage_tracker import track_usage, get_user_usage_history, get_user_usage_stats
 from src.youtube_podcast.utils.rate_limiter import requires_rate_limit, check_rate_limit
+from src.youtube_podcast.utils.billing import (
+    PLAN_TIERS,
+    create_checkout_session,
+    create_portal_session,
+    handle_webhook,
+    requires_paid_plan,
+)
 from src.youtube_podcast.agents.summary_agent import (
     generate_summary,
 )
@@ -92,7 +99,7 @@ def features():
 @app.route('/pricing')
 def pricing():
     """Pricing page"""
-    return render_template('pricing.html')
+    return render_template('pricing.html', tiers=PLAN_TIERS)
 
 @app.route('/api')
 def api_docs():
@@ -531,6 +538,54 @@ def delete_api_token(token_id):
         return jsonify({'error': f'Error deleting token: {str(e)}'}), 500
 
 
+
+# ---------------------------------------------------------------------------
+# Billing (Stripe)
+# ---------------------------------------------------------------------------
+
+@app.route('/billing/create-checkout', methods=['POST'])
+def billing_create_checkout():
+    """Create a Stripe Checkout Session for a paid plan; returns the URL."""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required. Please log in first.'}), 401
+
+        data = request.get_json(silent=True) or {}
+        plan = (data.get('plan') or '').strip().lower()
+        if plan not in PLAN_TIERS:
+            return jsonify({'error': f"Unknown plan. Choose one of: {', '.join(PLAN_TIERS)}"}), 400
+
+        url = create_checkout_session(user_id, session.get('user_email', ''), plan)
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        logging.error(f"Checkout creation failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/billing/portal', methods=['GET'])
+def billing_portal():
+    """Return the Stripe customer portal URL for managing the subscription."""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+        url = create_portal_session(user_id)
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        logging.error(f"Portal creation failed: {e}")
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/billing/webhook', methods=['POST'])
+def billing_webhook():
+    """Stripe webhook endpoint. Signature-verified; no login required."""
+    payload = request.get_data()
+    sig_header = request.headers.get('Stripe-Signature', '')
+    status, body = handle_webhook(payload, sig_header)
+    return jsonify(body), status
+
+
 @app.route("/healthz", methods=["GET"])
 def health_check():
     """Simple health-check endpoint for load balancers and uptime monitoring."""
@@ -590,6 +645,7 @@ def extract_transcript():
 
 @app.route('/generate-summary', methods=['POST'])
 @requires_rate_limit
+@requires_paid_plan
 def generate_summary_endpoint():
     """Generate summary from transcript"""
     try:
@@ -636,6 +692,7 @@ def generate_summary_endpoint():
 
 @app.route('/generate-podcast', methods=['POST'])
 @requires_rate_limit
+@requires_paid_plan
 def generate_podcast_endpoint():
     """Generate podcast from transcript"""
     try:
@@ -707,6 +764,7 @@ def download_file(filename):
         return jsonify({'error': f'Error downloading file: {str(e)}'}), 500
 
 @app.route('/bulk-extract', methods=['POST'])
+@requires_paid_plan
 def bulk_extract_endpoint():
     """Extract transcripts from multiple YouTube URLs"""
     try:
@@ -733,7 +791,7 @@ def bulk_extract_endpoint():
         return jsonify({'error': f'Error processing bulk extraction: {str(e)}'}), 500
 
 @app.route('/api/transcripts', methods=['POST'])
-@requires_auth
+@requires_plan('plus')
 def api_transcripts():
     """
     API endpoint to fetch transcripts for multiple video IDs.
@@ -822,6 +880,7 @@ def api_channels():
 
 @app.route('/extract-playlist', methods=['POST'])
 @requires_auth
+@requires_paid_plan
 def extract_playlist_endpoint():
     """Extract transcripts from a YouTube playlist (requires authentication)"""
     try:
@@ -863,6 +922,7 @@ def extract_playlist_endpoint():
         return jsonify({'error': f'Error processing playlist: {str(e)}'}), 500
 
 @app.route('/import-csv', methods=['POST'])
+@requires_paid_plan
 def import_csv_endpoint():
     """Import YouTube URLs from CSV and extract transcripts"""
     try:
@@ -899,6 +959,7 @@ def import_csv_endpoint():
         return jsonify({'error': f'Error processing CSV: {str(e)}'}), 500
 
 @app.route('/export-csv', methods=['POST'])
+@requires_paid_plan
 def export_csv_endpoint():
     """Export extraction results to CSV"""
     try:
@@ -935,28 +996,6 @@ def not_found(error):
     """404 error handler"""
     return render_template('404.html'), 404
 
-
-@app.route('/api/user/usage-history', methods=['GET'])
-def get_usage_history():
-    """Get user's usage history"""
-    try:
-        if not session.get('user_id'):
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        limit = request.args.get('limit', 50, type=int)
-        user_id = session.get('user_id')
-        
-        history = get_user_usage_history(user_id, limit)
-        
-        return jsonify({
-            'success': True,
-            'history': history,
-            'total': len(history)
-        })
-    
-    except Exception as e:
-        logging.error(f"Error fetching usage history: {str(e)}")
-        return jsonify({'error': f'Error fetching history: {str(e)}'}), 500
 
 @app.errorhandler(500)
 def internal_error(error):
