@@ -20,6 +20,11 @@ Copy `.env.example` to `.env` and fill in every value. Full checklist:
 | `SUPABASE_ANON_KEY` | yes | From Supabase dashboard |
 | `SUPABASE_SERVICE_KEY` | yes | Service-role key — **server only**, used by the Stripe webhook |
 | `OPENAI_API_KEY` | for AI features | Summaries + podcast scripts |
+| `YOUTUBE_API_KEY` | no | Official captions API — only helps for videos you own |
+| `TRANSCRIPT_FALLBACK_PROVIDER` | no | Paid transcript fallback; currently `supadata` |
+| `TRANSCRIPT_FALLBACK_API_KEY` | no | API key for the fallback provider |
+| `VTP_API_TOKEN` | for MCP server | API token from /account (MCP calls your HTTP API) |
+| `VTP_API_BASE_URL` | for MCP server | Public API URL, e.g. `https://ytp.example.com` |
 | `STRIPE_SECRET_KEY` | yes | `sk_live_...` in production |
 | `STRIPE_PUBLISHABLE_KEY` | yes | `pk_live_...` (currently unused server-side, kept for future) |
 | `STRIPE_WEBHOOK_SECRET` | yes | From the webhook endpoint created in step 4 (`whsec_...`) |
@@ -98,7 +103,75 @@ gunicorn "app:app" --bind 127.0.0.1:8000 --workers 2 --timeout 120
   with `SENTRY_DSN` from your Sentry project.
 - Logs: `LOG_LEVEL=INFO` (default); set `WERKZEUG_LOG_LEVEL=WARNING` to cut noise.
 
-## 9. Known limitations / follow-ups
+## 9. Transcript fallback chain
+
+`src/youtube_podcast/utils/youtube_utils.py` tries sources in order and logs
+which one succeeded (`transcript acquired: video_id=... source=...`):
+
+1. **Official YouTube Data API v3 captions** — needs `YOUTUBE_API_KEY`; only
+   works for videos you own. Fails fast otherwise.
+2. **youtube-transcript-api** (community extractor) — English preferred, then
+   any available track. This breaks periodically when YouTube changes things;
+   keep the package updated (`pip install -U youtube-transcript-api`).
+3. **Paid fallback** — set `TRANSCRIPT_FALLBACK_PROVIDER=supadata` and
+   `TRANSCRIPT_FALLBACK_API_KEY` for a hosted fallback when the extractor is
+   blocked (Supadata free tier covers light use).
+
+When every source fails the API returns an honest
+`"Transcripts are unavailable for this video right now."` — never a fabricated
+transcript.
+
+## 10. API quotas & new endpoints
+
+- Monthly API **request** quotas (separate from AI token quotas):
+  free 20 · plus 2,000 · pro 50,000. Enforced by `requires_api_quota`
+  (`429` + `upgrade_url` when exhausted).
+- Every API response carries `X-Quota-Limit`, `X-Quota-Remaining`,
+  `X-Quota-Plan` headers.
+- New Plus+ endpoints: `POST /api/summarize`, `POST /api/podcast`
+  (`voice`: female/male/mixed), `POST /api/clips` (top 3 clip moments).
+  AI endpoints consume 10 AI tokens each on top of the request quota.
+- Web UI: `/generate-clips` (Plus+) powers the "Clip moments" card on `/`.
+
+## 11. MCP server (Claude Desktop / agents)
+
+`mcp_server.py` exposes `get_transcript`, `summarize_video`,
+`generate_podcast_episode`, `find_clip_moments` as MCP tools. It is a thin
+client over your HTTP API, so plan gating and quotas apply automatically.
+
+```bash
+pip install -r requirements.txt   # includes `mcp`
+VTP_API_TOKEN=<token-from-/account> VTP_API_BASE_URL=https://YOUR-DOMAIN \
+  python mcp_server.py
+```
+
+Claude Desktop (`~/.claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "videotranscript-pro": {
+      "command": "python",
+      "args": ["/absolute/path/to/mcp_server.py"],
+      "env": {
+        "VTP_API_TOKEN": "your-api-token",
+        "VTP_API_BASE_URL": "https://YOUR-DOMAIN"
+      }
+    }
+  }
+}
+```
+
+## 12. Clip moments & ffmpeg
+
+`/api/clips` and `/generate-clips` return the top 3 shareable moments with
+timestamps + titles (LLM detection only). Cutting video files server-side is
+deliberately out of scope — downloading YouTube videos violates YouTube's ToS.
+`src/youtube_podcast/utils/clips.py::cut_clips_from_file` cuts moments from a
+**local** video file you have rights to, if `ffmpeg` is installed
+(`apt install ffmpeg` on a VPS; not available on Render/Railway by default).
+
+## 13. Known limitations / follow-ups
 
 - Playlist/channel endpoints need a YouTube Data API v3 key (currently return a placeholder message).
 - Server-side Supabase writes (billing, tokens) use the service-role key; the older

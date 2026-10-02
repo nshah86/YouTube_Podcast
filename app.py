@@ -12,7 +12,11 @@ import uuid
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from src.youtube_podcast.utils.youtube_utils import fetch_transcript
+from src.youtube_podcast.utils.youtube_utils import (
+    fetch_transcript,
+    fetch_transcript_entries,
+    TranscriptUnavailableError,
+)
 from src.youtube_podcast.utils.bulk_extract import (
     bulk_extract_transcripts,
     parse_csv_urls,
@@ -27,7 +31,12 @@ from src.youtube_podcast.utils.auth import (
     increment_token_usage,
 )
 from src.youtube_podcast.utils.supabase_client import get_supabase, is_supabase_configured
-from src.youtube_podcast.utils.usage_tracker import track_usage, get_user_usage_history, get_user_usage_stats
+from src.youtube_podcast.utils.usage_tracker import (
+    track_usage,
+    get_user_usage_history,
+    get_user_usage_stats,
+    update_user_token_usage,
+)
 from src.youtube_podcast.utils.rate_limiter import requires_rate_limit, check_rate_limit
 from src.youtube_podcast.utils.billing import (
     PLAN_TIERS,
@@ -35,6 +44,8 @@ from src.youtube_podcast.utils.billing import (
     create_portal_session,
     handle_webhook,
     requires_paid_plan,
+    requires_api_quota,
+    quota_headers,
 )
 from src.youtube_podcast.agents.summary_agent import (
     generate_summary,
@@ -43,6 +54,7 @@ from src.youtube_podcast.agents.podcast_agent import (
     create_conversation,
     generate_podcast,
 )
+from src.youtube_podcast.utils.clips import detect_clip_moments
 from src.youtube_podcast.config.settings import DEFAULT_OUTPUT_DIR
 from config import get_config
 
@@ -791,7 +803,8 @@ def bulk_extract_endpoint():
         return jsonify({'error': f'Error processing bulk extraction: {str(e)}'}), 500
 
 @app.route('/api/transcripts', methods=['POST'])
-@requires_plan('plus')
+@requires_api_quota
+@requires_plan('free')
 def api_transcripts():
     """
     API endpoint to fetch transcripts for multiple video IDs.
@@ -834,7 +847,7 @@ def api_transcripts():
                 'error': result.get('error')
             })
         
-        return jsonify({
+        return _api_response({
             'success': True,
             'results': formatted_results,
             'total': len(results),
@@ -845,6 +858,7 @@ def api_transcripts():
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
 
 @app.route('/api/channels', methods=['POST'])
+@requires_api_quota
 @requires_plan('plus')
 def api_channels():
     """
@@ -867,7 +881,7 @@ def api_channels():
             return jsonify({'error': 'Maximum 50 channels allowed per request'}), 400
         
         # Placeholder response - requires YouTube Data API integration
-        return jsonify({
+        return _api_response({
             'success': True,
             'message': 'Channel API requires YouTube Data API v3 integration',
             'note': 'This endpoint is ready but needs YouTube Data API key configuration',
@@ -877,6 +891,184 @@ def api_channels():
     
     except Exception as e:
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
+
+def _api_response(payload, status=200):
+    """JSON response with API quota headers attached when the caller is known."""
+    resp = jsonify(payload)
+    resp.status_code = status
+    user_id = getattr(request, "api_user_id", None)
+    if user_id:
+        try:
+            resp.headers.update(quota_headers(user_id))
+        except Exception:
+            pass
+    return resp
+
+
+def _api_fetch_transcript_or_error(youtube_url):
+    """Fetch a transcript for API use. Returns (transcript, error_response)."""
+    try:
+        transcript = fetch_transcript(youtube_url)
+    except Exception:
+        transcript = None
+    if not transcript:
+        return None, _api_response(
+            {"error": "Transcripts are unavailable for this video right now."}, 400
+        )
+    return transcript, None
+
+
+def _consume_api_tokens(count):
+    """Consume AI tokens for an API call (token quota + DB usage)."""
+    increment_token_usage(request.api_token, count)
+    if getattr(request, "api_user_id", None):
+        update_user_token_usage(request.api_user_id, count)
+
+
+@app.route('/api/summarize', methods=['POST'])
+@requires_api_quota
+@requires_plan('plus')
+def api_summarize():
+    """Generate an AI summary via the API. Requires Plus plan or higher."""
+    try:
+        data = request.get_json() or {}
+        youtube_url = (data.get('url') or '').strip()
+        if not youtube_url:
+            return _api_response({'error': 'url is required'}, 400)
+
+        has_limit, error_msg = check_token_limit(request.api_token, 10)
+        if not has_limit:
+            return _api_response({'error': error_msg}, 403)
+
+        transcript, err = _api_fetch_transcript_or_error(youtube_url)
+        if err:
+            return err
+
+        state = {
+            'url': youtube_url,
+            'transcript': transcript,
+            'status': 'transcript_fetched',
+            'output_type': 'summary',
+        }
+        result = generate_summary(state)
+        if result.get('error'):
+            return _api_response({'error': result['error']}, 500)
+
+        _consume_api_tokens(10)
+        return _api_response({
+            'success': True,
+            'title': result.get('summary_title', 'Summary'),
+            'summary': result.get('summary', ''),
+        })
+    except Exception as e:
+        return _api_response({'error': f'Error generating summary: {str(e)}'}, 500)
+
+
+@app.route('/api/podcast', methods=['POST'])
+@requires_api_quota
+@requires_plan('plus')
+def api_podcast():
+    """Generate a podcast episode (script + MP3) via the API. Plus plan+."""
+    try:
+        data = request.get_json() or {}
+        youtube_url = (data.get('url') or '').strip()
+        voice = (data.get('voice') or 'female').strip().lower()
+        if not youtube_url:
+            return _api_response({'error': 'url is required'}, 400)
+
+        has_limit, error_msg = check_token_limit(request.api_token, 10)
+        if not has_limit:
+            return _api_response({'error': error_msg}, 403)
+
+        transcript, err = _api_fetch_transcript_or_error(youtube_url)
+        if err:
+            return err
+
+        state = {
+            'url': youtube_url,
+            'transcript': transcript,
+            'status': 'transcript_fetched',
+            'output_type': 'podcast',
+            'gender': voice if voice in ('male', 'female') else 'mixed',
+        }
+        state = create_conversation(state)
+        if state.get('error'):
+            return _api_response({'error': state['error']}, 500)
+        state = generate_podcast(state)
+        if state.get('error'):
+            return _api_response({'error': state['error']}, 500)
+
+        audio_path = state.get('audio_path')
+        if not audio_path or not os.path.exists(audio_path):
+            return _api_response({'error': 'Failed to generate audio file'}, 500)
+
+        _consume_api_tokens(10)
+        return _api_response({
+            'success': True,
+            'title': state.get('podcast_title', 'Podcast'),
+            'conversation': state.get('conversation', ''),
+            'audio_filename': os.path.basename(audio_path),
+            'audio_url': f"/download/{os.path.basename(audio_path)}",
+        })
+    except Exception as e:
+        return _api_response({'error': f'Error generating podcast: {str(e)}'}, 500)
+
+
+@app.route('/api/clips', methods=['POST'])
+@requires_api_quota
+@requires_plan('plus')
+def api_clips():
+    """Detect the top shareable clip moments in a video. Plus plan+."""
+    try:
+        data = request.get_json() or {}
+        youtube_url = (data.get('url') or '').strip()
+        if not youtube_url:
+            return _api_response({'error': 'url is required'}, 400)
+        try:
+            entries, source = fetch_transcript_entries(youtube_url)
+        except TranscriptUnavailableError as exc:
+            return _api_response({'error': str(exc)}, 400)
+        moments = detect_clip_moments(entries)
+        return _api_response({
+            'success': True,
+            'moments': moments,
+            'transcript_source': source,
+        })
+    except Exception as e:
+        return _api_response({'error': f'Error detecting clip moments: {str(e)}'}, 500)
+
+
+@app.route('/generate-clips', methods=['POST'])
+@requires_rate_limit
+@requires_paid_plan
+def generate_clips_endpoint():
+    """Detect the top shareable clip moments (web UI, Plus plan+)."""
+    try:
+        data = request.get_json() or {}
+        youtube_url = (data.get('url') or '').strip()
+        if not youtube_url:
+            return jsonify({'error': 'YouTube URL is required'}), 400
+        try:
+            entries, source = fetch_transcript_entries(youtube_url)
+        except TranscriptUnavailableError as exc:
+            return jsonify({'error': str(exc)}), 400
+        moments = detect_clip_moments(entries)
+        if session.get('user_id'):
+            track_usage(
+                user_id=session.get('user_id'),
+                video_url=youtube_url,
+                operation_type='clips',
+                transcript_length=sum(len(e.get('text', '')) for e in entries),
+                tokens_used=1,
+            )
+        return jsonify({
+            'success': True,
+            'moments': moments,
+            'transcript_source': source,
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error detecting clip moments: {str(e)}'}), 500
+
 
 @app.route('/extract-playlist', methods=['POST'])
 @requires_auth

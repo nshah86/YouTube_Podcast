@@ -12,6 +12,13 @@
   <div id="out" style="margin-top:1rem; white-space:pre-wrap; max-height:300px; overflow:auto;"></div>
 </div>
 
+<div class="card" style="margin-top:1.5rem;">
+  <h2>✂️ Clip moments</h2>
+  <p>Find the 3 most shareable moments in any video — timestamps plus titles. Plus plan and up.</p>
+  <button class="btn" onclick="findClips()">Find clip moments</button>
+  <div id="clips-out" style="margin-top:1rem;"></div>
+</div>
+
 <div class="grid">
   <div class="card"><h2>📝 Transcripts</h2><p>Full captions from any video, free. Bulk extract up to 50 videos at once on Pro.</p></div>
   <div class="card"><h2>🤖 AI summaries</h2><p>GPT-powered 400–600 word summaries with titles. Plus plan and up.</p></div>
@@ -30,6 +37,21 @@ async function extract(){
     const r = await fetch('/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
     const j = await r.json();
     out.textContent = j.success ? j.transcript.slice(0,4000) : ('Error: '+(j.error||'unknown'));
+  }catch(e){ out.textContent = 'Error: '+e.message; }
+}
+async function findClips(){
+  const url = document.getElementById('url').value.trim();
+  const out = document.getElementById('clips-out');
+  if(!url){ out.textContent = 'Paste a YouTube URL above first.'; return; }
+  out.textContent = 'Analyzing…';
+  try{
+    const r = await fetch('/generate-clips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const j = await r.json();
+    if(!j.success){ out.textContent = 'Error: '+(j.error||'unknown'); return; }
+    out.innerHTML = j.moments.map((m,i) =>
+      `<div style="margin-bottom:.75rem"><strong>${i+1}. ${m.start} – ${m.end}</strong> — ${m.title}` +
+      (m.reason ? `<br><span style="color:var(--muted)">${m.reason}</span>` : '') + `</div>`
+    ).join('') + `<p style="color:var(--muted);font-size:.85rem">Transcript source: ${j.transcript_source||'unknown'}</p>`;
   }catch(e){ out.textContent = 'Error: '+e.message; }
 }
 </script>

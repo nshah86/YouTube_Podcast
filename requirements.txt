@@ -20,3 +20,6 @@ langchain-community>=0.3
 
 # Text-to-speech (podcast audio; free tier via Google TTS)
 gTTS>=2.5
+
+# MCP server (Claude Desktop / agents)
+mcp>=1.0
