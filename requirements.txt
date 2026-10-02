@@ -1,0 +1,22 @@
+# Core
+Flask>=3.0,<4
+python-dotenv>=1.0
+gunicorn>=21.0
+
+# Database / auth
+supabase>=2.0
+
+# Billing
+stripe>=7.0
+
+# YouTube transcripts
+youtube-transcript-api>=0.6
+
+# AI (summaries, podcast scripts)
+langchain>=0.3
+langchain-core>=0.3
+langchain-openai>=0.2
+langchain-community>=0.3
+
+# Text-to-speech (podcast audio; free tier via Google TTS)
+gTTS>=2.5
