@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Support — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>Support</h1>
+<div id="msg"></div>
+<div class="card" style="max-width:560px;">
+  <label for="category">Category</label>
+  <select id="category"><option>Billing</option><option>Technical issue</option><option>Feature request</option><option>Other</option></select>
+  <label for="subject">Subject</label>
+  <input id="subject" type="text">
+  <label for="message">Message</label>
+  <textarea id="message" rows="5"></textarea>
+  <button class="btn" onclick="send()">Submit request</button>
+  <p style="font-size:.85rem;color:var(--muted);margin-top:.5rem;">You must be logged in. We respond within 24–48 hours.</p>
+</div>
+<script>
+async function send(){
+  const body={category:document.getElementById('category').value,
+    subject:document.getElementById('subject').value.trim(),
+    message:document.getElementById('message').value.trim()};
+  const r=await fetch('/api/support/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();
+  document.getElementById('msg').innerHTML = j.success
+    ? '<div class="alert alert-ok">'+j.message+'</div>'
+    : '<div class="alert alert-error">'+(j.error||'Failed')+'</div>';
+}
+</script>
+{% endblock %}

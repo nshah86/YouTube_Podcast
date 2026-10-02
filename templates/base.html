@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}VideoTranscript Pro{% endblock %}</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+  nav { display:flex; gap:1.2rem; align-items:center; padding:1rem 2rem; background:#0b1220; border-bottom:1px solid #1e293b; flex-wrap:wrap; }
+  nav .logo { font-weight:800; font-size:1.2rem; color:var(--accent); text-decoration:none; margin-right:auto; }
+  nav a { color:var(--muted); text-decoration:none; font-size:.95rem; }
+  nav a:hover { color:var(--text); }
+  main { flex:1; max-width:1000px; width:100%; margin:0 auto; padding:2.5rem 1.5rem; }
+  footer { text-align:center; padding:1.5rem; color:var(--muted); font-size:.85rem; border-top:1px solid #1e293b; }
+  .btn { display:inline-block; background:var(--accent); color:#0b1220; font-weight:700; padding:.7rem 1.4rem; border-radius:.5rem; text-decoration:none; border:none; cursor:pointer; font-size:1rem; }
+  .btn:hover { filter:brightness(1.1); }
+  .btn-ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .card { background:var(--card); border-radius:.75rem; padding:1.5rem; margin:1rem 0; }
+  h1 { font-size:2.2rem; margin-bottom:1rem; } h2 { font-size:1.5rem; margin:1.5rem 0 .75rem; }
+  p, li { color:#cbd5e1; line-height:1.7; } ul { padding-left:1.2rem; }
+  input, select, textarea { width:100%; padding:.7rem; margin:.4rem 0 1rem; border-radius:.4rem; border:1px solid #334155; background:#0b1220; color:var(--text); font-size:1rem; }
+  label { font-size:.9rem; color:var(--muted); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
+  .price { font-size:2rem; font-weight:800; color:var(--accent); }
+  .alert { padding:.8rem 1rem; border-radius:.5rem; margin:1rem 0; }
+  .alert-error { background:#7f1d1d; } .alert-ok { background:#14532d; }
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="/">▶ VideoTranscript Pro</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/api">API</a>
+  <a href="/support">Support</a>
+  <a href="/about">About</a>
+  <a href="/account">Account</a>
+</nav>
+<main>{% block content %}{% endblock %}</main>
+<footer>VideoTranscript Pro · Transcripts, AI summaries &amp; podcasts from any YouTube video</footer>
+</body>
+</html>

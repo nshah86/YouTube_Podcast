@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Account — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>Your account</h1>
+<div id="msg"></div>
+<div class="card" id="profile"><p>Loading…</p></div>
+<p>
+  <a class="btn" href="/pricing">Upgrade plan</a>
+  <button class="btn btn-ghost" onclick="portal()">Manage billing</button>
+  <button class="btn btn-ghost" onclick="logout()">Log out</button>
+</p>
+<script>
+async function load(){
+  const params=new URLSearchParams(location.search);
+  if(params.get('billing')==='success'){
+    document.getElementById('msg').innerHTML='<div class="alert alert-ok">Subscription active — welcome aboard!</div>';
+  }
+  const r=await fetch('/api/user/profile');
+  if(r.status===401){ location.href='/login'; return; }
+  const j=await r.json();
+  const p=j.profile||{};
+  document.getElementById('profile').innerHTML=
+    '<p><strong>Email:</strong> '+(p.email||'')+'</p>'+
+    '<p><strong>Plan:</strong> '+(p.plan||'free')+'</p>'+
+    '<p><strong>API tokens used:</strong> '+(p.tokens_used||0)+' / '+(p.tokens_limit||0)+'</p>';
+}
+async function portal(){
+  const r=await fetch('/billing/portal');
+  const j=await r.json().catch(()=>({}));
+  if(r.ok && j.url){ location.href=j.url; }
+  else if(r.status===401){ location.href='/login'; }
+  else{ document.getElementById('msg').innerHTML='<div class="alert alert-error">'+(j.error||'No billing account yet — subscribe first.')+'</div>'; }
+}
+async function logout(){
+  await fetch('/auth/logout',{method:'POST'});
+  location.href='/';
+}
+load();
+</script>
+{% endblock %}

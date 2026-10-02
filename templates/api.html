@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}API — VideoTranscript Pro{% endblock %}
+{% block content %}
+<h1>API documentation</h1>
+<p>Generate an API token from your <a href="/account">account</a>, then call the API with an <code>Authorization: Bearer &lt;token&gt;</code> header.</p>
+
+<div class="card">
+<h2>Authentication</h2>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -H "Authorization: Bearer YOUR_TOKEN" https://YOUR-DOMAIN/api/transcripts</pre>
+<p>Tokens are per-user and revocable from <a href="/account">your account</a>. Keep them secret — they inherit your plan's quotas.</p>
+</div>
+
+<div class="card">
+<h2>Rate limits</h2>
+<p>Per-endpoint rate limiting applies (burst protection). Exceeding it returns <code>429</code> — back off and retry.</p>
+</div>
+
+<div class="card">
+<h2>API request quotas</h2>
+<p>Requests are counted per calendar month, per user:</p>
+<ul><li>Free: 20 / month</li><li>Plus: 2,000 / month</li><li>Pro: 50,000 / month</li><li>Enterprise: 50,000 / month</li></ul>
+<p>Exceeding your quota returns <code>429</code> with an <code>upgrade_url</code>. AI endpoints (<code>/api/summarize</code>, <code>/api/podcast</code>, <code>/api/clips</code>) additionally consume AI tokens from your plan's token quota (10 per call).</p>
+</div>
+
+<div class="card">
+<h2>Quota headers</h2>
+<p>Every API response carries:</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">X-Quota-Limit: 2000
+X-Quota-Remaining: 1843
+X-Quota-Plan: plus</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/transcripts <span style="font-size:.8rem;color:var(--muted)">Free+</span></h2>
+<p>Fetch transcripts for up to 50 video IDs.</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -X POST https://YOUR-DOMAIN/api/transcripts \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"ids":["dQw4w9WgXcQ"]}'</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/summarize <span style="font-size:.8rem;color:var(--muted)">Plus+</span></h2>
+<p>AI summary (title + 400–600 words) of a video. Consumes 10 AI tokens.</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -X POST https://YOUR-DOMAIN/api/summarize \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}'</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/podcast <span style="font-size:.8rem;color:var(--muted)">Plus+</span></h2>
+<p>Two-host conversation script + MP3 for a video. Optional <code>voice</code>: <code>female</code> (default), <code>male</code>, <code>mixed</code>. Consumes 10 AI tokens. Returns <code>audio_url</code> for the MP3 download.</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -X POST https://YOUR-DOMAIN/api/podcast \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","voice":"mixed"}'</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/clips <span style="font-size:.8rem;color:var(--muted)">Plus+</span></h2>
+<p>Top 3 shareable short-clip moments (timestamps + titles) for a video.</p>
+<pre style="background:#0b1220;padding:1rem;border-radius:.5rem;overflow:auto;">curl -X POST https://YOUR-DOMAIN/api/clips \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}'</pre>
+</div>
+
+<div class="card">
+<h2>POST /api/channels <span style="font-size:.8rem;color:var(--muted)">Plus+</span></h2>
+<p>Channel info lookup (requires YouTube Data API key configuration).</p>
+</div>
+
+<div class="card">
+<h2>MCP server</h2>
+<p>Use VideoTranscript Pro from Claude Desktop or any MCP client: run <code>mcp_server.py</code> (see DEPLOY.md) with <code>VTP_API_TOKEN</code> set. Tools: <code>get_transcript</code>, <code>summarize_video</code>, <code>generate_podcast_episode</code>, <code>find_clip_moments</code> — all plan-gated and quota-counted.</p>
+</div>
+{% endblock %}
